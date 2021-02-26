@@ -54,7 +54,10 @@ def saveCsv(filename, prediction, original):
     prediction.to_csv(filename + '.csv', decimal='.', sep=';')
 
 
-def analyse(analysis_name, dataset, dataset_name, model, grid_search_params, reducer, numTrials, numSplits):
+def analyse(
+  reducer_name, analysis_name, dataset, dataset_name, model, grid_search_params, reducer, numTrials, numSplits, \
+  model_name, dimension
+):
     print()
     print(analysis_name, flush=True)
     print()
@@ -62,7 +65,7 @@ def analyse(analysis_name, dataset, dataset_name, model, grid_search_params, red
     numResults = numTrials * numSplits
     result_MSE = np.zeros(numResults)
     result_R2 = np.zeros(numResults)
-    menorErro = 0
+    lowestError = 0
 
     time_spent_training = []
     time_spent_testing = []
@@ -72,7 +75,7 @@ def analyse(analysis_name, dataset, dataset_name, model, grid_search_params, red
         k_fold = ShuffleSplit(n_splits=numSplits, random_state=i)
 
         for train_indices, test_indices in k_fold.split(dataset):
-            print("Iteracao %d de %d:" % (count + 1, numResults), flush=True)
+            print("Iteration %d of %d:" % (count + 1, numResults), flush=True)
             sys.stdout.flush()
 
             # Train start
@@ -81,11 +84,8 @@ def analyse(analysis_name, dataset, dataset_name, model, grid_search_params, red
             trainOriginalFeatures = dataset[train_indices, :-1]
             trainOriginalLabels = dataset[train_indices, -1].reshape(-1, 1)
 
-            if reducer is None:
-              trainReducedFeatures = trainOriginalFeatures
-            else:
-              reducerWeights = reducer['fit'](trainOriginalFeatures)
-              trainReducedFeatures = reducer['transform'](trainOriginalFeatures, reducerWeights)
+            if reducer is None: trainReducedFeatures = trainOriginalFeatures
+            else: trainReducedFeatures = reducer.fit_transform(trainOriginalFeatures)
 
             reducedFeaturesScaler = StandardScaler().fit(trainReducedFeatures)
             trainScaledReducedFeatures = reducedFeaturesScaler.transform(trainReducedFeatures)
@@ -106,10 +106,8 @@ def analyse(analysis_name, dataset, dataset_name, model, grid_search_params, red
             testOriginalFeatures = dataset[test_indices, :-1]
             testOriginalLabels = dataset[test_indices, -1].reshape(-1, 1)
 
-            if reducer is None:
-              testReducedFeatures = testOriginalFeatures
-            else:
-              testReducedFeatures = reducer['transform'](testOriginalFeatures, reducerWeights)
+            if reducer is None: testReducedFeatures = testOriginalFeatures
+            else: testReducedFeatures = reducer.transform(testOriginalFeatures)
 
             testScaledReducedFeatures = reducedFeaturesScaler.transform(testReducedFeatures)
 
@@ -124,24 +122,22 @@ def analyse(analysis_name, dataset, dataset_name, model, grid_search_params, red
             time_spent_testing.append((test_end - test_start).total_seconds())
 
             if count == 0:
-                menorErro = result_MSE[count]
+                lowestError = result_MSE[count]
                 bestSelector = selector
                 bestReducer = reducer
-                bestReducerWeights = reducerWeights
                 bestReducedFeaturesScaler = reducedFeaturesScaler
                 bestLabelsScaler = labelsScaler
-                print("- Novo menor erro=%f" % menorErro)
+                print("- New lowest error=%f" % lowestError)
             else:
-                if result_MSE[count] < menorErro:
-                    menorErro = result_MSE[count]
+                if result_MSE[count] < lowestError:
+                    lowestError = result_MSE[count]
                     bestSelector = selector
                     bestReducer = reducer
-                    bestReducerWeights = reducerWeights
                     bestReducedFeaturesScaler = reducedFeaturesScaler
                     bestLabelsScaler = labelsScaler
-                    print("- Novo menor erro=%f" % menorErro)
+                    print("- New lowest error=%f" % lowestError)
                 else:
-                    print("- Nada alterado")
+                    print("- Nothing changed")
 
             count += 1
 
@@ -151,11 +147,8 @@ def analyse(analysis_name, dataset, dataset_name, model, grid_search_params, red
     features = dataset[:, :-1]
     labels = dataset[:, -1].reshape(-1, 1)
 
-
-    if reducer is None:
-      reducedFeatures = features
-    else:
-      reducedFeatures = bestReducer['transform'](features, bestReducerWeights)
+    if reducer is None: reducedFeatures = features
+    else: reducedFeatures = bestReducer.transform(features)
 
     scaledReducedFeatures = bestReducedFeaturesScaler.transform(reducedFeatures)
 
@@ -167,18 +160,21 @@ def analyse(analysis_name, dataset, dataset_name, model, grid_search_params, red
     print("RMSE %2.5f R2 %2.5f " % (rMSE, rR2), flush=True)
 
     saveCsv(
-      filename='output/csvs/' + dataset_name + '/' + analysis_name,
+      filename='output/' + dataset_name + '/' + model_name.upper() + '_' + \
+        reducer_name.upper() + '_' + str(dimension) + '/csv',
       prediction=prediction,
       original=labels.ravel()
     )
     savePlot(
-      filename='output/figures/english/' + dataset_name + '/' + analysis_name,
+      filename='output/' + dataset_name + '/' + model_name.upper() + '_' + \
+        reducer_name.upper() + '_' + str(dimension) + '/english',
       x=prediction,
       y=labels.ravel(),
       english=True
     )
     savePlot(
-      filename='output/figures/portuguese/' + dataset_name + '/' + analysis_name,
+      filename='output/' + dataset_name + '/' + model_name.upper() + '_' + \
+        reducer_name.upper() + '_' + str(dimension) + '/portuguese',
       x=prediction,
       y=labels.ravel(),
       english=False
