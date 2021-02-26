@@ -6,7 +6,7 @@ from sklearn.svm import SVR
 from sklearn.linear_model import ElasticNet
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import (RBF, RationalQuadratic, ExpSineSquared,)
+from sklearn.gaussian_process.kernels import RBF, RationalQuadratic, ExpSineSquared
 
 from sklearn.decomposition import PCA
 from sklearn.manifold import Isomap
@@ -15,15 +15,30 @@ from sklearn.manifold import LocallyLinearEmbedding
 from sklearn.decomposition import NMF  # Non-Negative Matrix Factorization
 from sklearn.decomposition import TruncatedSVD
 
+import sys
 import numpy as np
 from utils import analyse
 
+print('Arguments:', str(sys.argv))
+
+assert len(sys.argv) >= 5, 'Please specify all required arguments when running this script'
+
+dataset_to_use = sys.argv[1].upper()
+model_to_run = sys.argv[2].upper()
+reducer_to_use = sys.argv[3].upper()
+number_of_components_to_consider = [int(v) for v in sys.argv[4:]]
+
+print('Dataset to use:', dataset_to_use)
+print('Model to run:', model_to_run)
+print('Reducer to use:', reducer_to_use)
+print('Number of components to consider:', number_of_components_to_consider)
 
 numTrials = 5
 numSplits = 5
 
 files = {
-  'DadosExp1': {'path': 'datasets/dadosExp1.txt', 'delimiter': '\t'}
+  'dataUNISIM1': {'path': 'dataUNISIM1.txt', 'delimiter': '\t'},
+  'dataUNISIM2': {'path': 'dataUNISIM2.txt', 'delimiter': '\t'}
 }
 
 models = {
@@ -46,7 +61,7 @@ models = {
     ]
   },
 
-'GPR': {  # GPR has not been used in the paper
+ 'GPR': {  # GPR has not been used in the paper
     'function': GaussianProcessRegressor,
     'model_params': {},
     'grid_search_params': [
@@ -80,7 +95,7 @@ models = {
     #  'kernel': ['rbf'],
     #  'gamma':  np.logspace(-2, 2, 5), #   [1e-5, 1e-3, 1e-1, 1e1],
     # 'C': [1e0, 1e1, 1e2, 1e3]
-    },
+  },
   'ENET':{
     'function': ElasticNet,
     'model_params': {'max_iter': 100000, 'random_state': 0},
@@ -93,14 +108,14 @@ models = {
     'function': KNeighborsRegressor,
     'model_params': {'n_jobs': -1},
     'grid_search_params': {
-      'n_neighbors': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11],
+      'n_neighbors': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
       'weights': ('uniform', 'distance')
     }
   }
 }
 
 def get_reducers(n_components):
-  if n_components is None: return {'dummy': 0}
+  if n_components == 0: return {'none': 0}
   return {
     'PCA': {
       'function': PCA,
@@ -130,15 +145,23 @@ def get_reducers(n_components):
 
 
 for dataset_name, file_info in files.items():
+  if dataset_to_use != None and dataset_name.upper() != dataset_to_use:
+    continue
+
   dataset = np.loadtxt(file_info['path'], delimiter=file_info['delimiter'], dtype=np.float64)
 
   for model_name, model_info in models.items():
+    if model_to_run != None and model_name.upper() != model_to_run:
+      continue
 
-    for n_components in [None, 5, 10]:
+    for n_components in number_of_components_to_consider:
       reducers = get_reducers(n_components)
 
       for reducer_name, reducer_info in reducers.items():
-        if n_components == None:
+        if reducer_to_use != 'NONE' and reducer_name.upper() != reducer_to_use and n_components != 0:
+          continue
+
+        if n_components == 0:
           reducer = None
           analysis_name = 'Surrogate_' + dataset_name + '_' + model_name
         else:
@@ -147,6 +170,7 @@ for dataset_name, file_info in files.items():
             + str(n_components) + '_' + 'components'
 
         analyse(
+          reducer_name=reducer_name,
           analysis_name=analysis_name,
           dataset=dataset,
           dataset_name=dataset_name,
@@ -154,7 +178,9 @@ for dataset_name, file_info in files.items():
           grid_search_params=model_info['grid_search_params'],
           reducer=reducer,
           numTrials=numTrials,
-          numSplits=numSplits
+          numSplits=numSplits,
+          model_name=model_name,
+          dimension=n_components,
         )
 
 
