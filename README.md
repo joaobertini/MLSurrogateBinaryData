@@ -1,6 +1,38 @@
 # Machile Learning Surrogate models
 Codes from paper "A comparison of machine learning surrogate models for net present value prediction from well placement high-dimensional binary data"
 
+## Task
+- Well placement optimization
+
+## Objective 
+- Build a surrogate model for NPV forcasting taking binary well placement data as input
+
+## Capabilities
+- Evaluate surrogate models either built by:
+  - A machine learning regression model (RM)
+  - Or a dimensionality reduction algorithm (DR) and a machine learning regression model
+- Implemented RMs:
+  - Support Vector Regression (SVR)
+  - Kernel Ridge Regression (KRR)
+  - Muilt-layer Perceptron (MLP)
+  - Elastic Net (ENET)
+  - Gradient Tree Boosting (GTB)
+  - K-Nearest Neighbor (KNN)
+- Implemented DRs:
+  - Principal Component Analysis (PCA)
+  - Kernel Principal Component Analysis (KPCA)
+  - Isometric mapping (Isomap)
+  - Locally Linear Embedding (LLE)
+  - Non-negative Matrix Factorization (NMF)
+  - Truncated Singular Value Decomposition (TSVD)
+
+## Methodology
+- Best model found by nested cross-validation
+  - Inner loop does model selection (parameter adjustment)
+  - Outter loop evaluates model in validation set
+ - **Output:** best model RMSE calculated using an out-of-sample test data
+ - **Output:** scatter plot of the best model predictions against the simulator output - consider whole data set
+
 ## Dependencies
 
 ```bash
